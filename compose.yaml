@@ -1,0 +1,78 @@
+name: queryvault-demo
+services:
+  db:
+    image: postgres:18-bookworm
+    environment:
+      POSTGRES_DB: queryvault
+      POSTGRES_USER: qv_migrator
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    volumes:
+      # PostgreSQL 18 keeps its versioned PGDATA below /var/lib/postgresql.
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U qv_migrator -d queryvault"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    shm_size: 128mb
+  migrate:
+    build: .
+    command: [python, migrate_deployment.py]
+    environment:
+      QUERYVAULT_MODE: public_demo
+      QUERYVAULT_DATASET: synthetic-logistics-v1
+      MIGRATION_DB_HOST: db
+      MIGRATION_DB_USER: qv_migrator
+      MIGRATION_DB_NAME: queryvault
+      MIGRATION_DB_PASSWORD_FILE: /run/secrets/postgres_password
+      READER_DB_PASSWORD_FILE: /run/secrets/reader_password
+    secrets: [postgres_password, reader_password]
+    depends_on:
+      db:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: "no"
+  web:
+    build: .
+    environment:
+      QUERYVAULT_MODE: public_demo
+      QUERYVAULT_PUBLIC_ORIGIN: ${QUERYVAULT_PUBLIC_ORIGIN:?Set the exact future HTTPS origin or a loopback HTTP origin for local testing}
+      QUERYVAULT_DATASET: synthetic-logistics-v1
+      QUERYVAULT_HOST: 0.0.0.0
+      PORT: "8000"
+      READER_DATABASE_URL_FILE: /run/secrets/reader_database_url
+    secrets: [reader_database_url]
+    # Private by default. A future TLS reverse proxy can use this loopback port.
+    ports: ["127.0.0.1:${QUERYVAULT_HOST_PORT:-8080}:8000"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    read_only: true
+    tmpfs: [/tmp:size=32m]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 128
+    mem_limit: 1g
+    cpus: 1
+    init: true
+    stop_grace_period: 20s
+    healthcheck:
+      test: [CMD, python, -c, "import os,urllib.request,urllib.parse; r=urllib.request.Request('http://127.0.0.1:8000/health/ready',headers={'Host':urllib.parse.urlsplit(os.environ['QUERYVAULT_PUBLIC_ORIGIN']).netloc}); urllib.request.urlopen(r,timeout=5)"]
+      interval: 30s
+      timeout: 6s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+volumes:
+  postgres_data:
+secrets:
+  postgres_password:
+    file: ./.local/deploy-secrets/postgres_password
+  reader_password:
+    file: ./.local/deploy-secrets/reader_password
+  reader_database_url:
+    file: ./.local/deploy-secrets/reader_database_url

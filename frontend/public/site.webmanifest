@@ -1,0 +1,16 @@
+{
+  "name": "QueryVault — Verifiable AI Research",
+  "short_name": "QueryVault",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3f0eb",
+  "theme_color": "#29282d",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

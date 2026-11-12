@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QueryVault · Sandbox checkout verification</title>
+<style>
+body{font:16px/1.6 system-ui,sans-serif;background:#f7f8f3;color:#233b3a;margin:0;padding:32px}main{max-width:680px;margin:7vh auto;background:white;border:1px solid #dce2d8;border-radius:12px;padding:32px}h1{line-height:1.2}small{color:#667b64}button,a{display:inline-block;padding:12px 18px;border-radius:7px;background:#164f47;color:white;border:0;text-decoration:none;font:inherit;margin:10px 8px 0 0;cursor:pointer}button:disabled{opacity:.5;cursor:wait}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;padding:16px;background:#f1f5ed}#notice{padding:12px;border-left:3px solid #b58a32}button:focus-visible,a:focus-visible{outline:3px solid #b58a32;outline-offset:3px}
+</style>
+</head>
+<body><main>
+<small>QUERYVAULT / PAYPAL SANDBOX</small>
+<h1>Checking your checkout status</h1>
+<p id="notice" role="status">Returning from PayPal does not prove approval. QueryVault will retrieve the order directly.</p>
+<pre id="details" hidden></pre>
+<button id="check" type="button">Recheck PayPal status</button><a href="/">Open research workspace</a>
+<p><small>This page never authorizes, captures, or voids funds. Authorize an approved order from the workspace or the agreed verification runner. A zero-spend void test captures nothing.</small></p>
+</main>
+<script>
+const notice=document.getElementById('notice'), heading=document.querySelector('h1'), details=document.getElementById('details'), button=document.getElementById('check');
+const token=new URLSearchParams(location.search).get('token');
+const cancelled=location.pathname==='/paypal/cancel';
+async function check(){
+  if(!token||!/^[A-Za-z0-9]+$/.test(token)){heading.textContent='No valid order reference';notice.textContent='Open the research workspace and select your session. No payment action was taken.';button.disabled=true;return;}
+  button.disabled=true;
+  try{
+    const login=await fetch('/api/local-login',{method:'POST',credentials:'same-origin'});
+    if(!login.ok)throw new Error('Open this page on the running QueryVault local server at port 8000.');
+    const response=await fetch('/api/paypal/return-status?token='+encodeURIComponent(token),{credentials:'same-origin',cache:'no-store'});
+    const data=await response.json();
+    if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:'Status verification failed. Recheck from the workspace.');
+    const voided=data.authorizations.some(a=>a.status==='VOIDED');
+    heading.textContent=voided?'Authorization independently verified VOIDED':data.order_status==='APPROVED'?'Buyer approval independently verified':data.order_status==='COMPLETED'?'Order independently verified COMPLETED':cancelled?'Checkout cancelled; order status checked':'Buyer approval is not yet verified';
+    notice.textContent=voided?'The authorization is voided. No further approval is needed.':data.order_status==='APPROVED'?'PayPal reports APPROVED. Continue in the workspace to authorize the agreed budget. No funds have been captured by this page.':'PayPal reports '+data.order_status+'. This page has made no payment changes.';
+    details.hidden=false;details.textContent=JSON.stringify(data,null,2);
+  }catch(error){heading.textContent='Could not verify checkout';notice.textContent=error.message;}
+  finally{button.disabled=false;}
+}
+button.addEventListener('click',check);check();
+</script></body></html>

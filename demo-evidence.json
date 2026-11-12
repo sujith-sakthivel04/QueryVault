@@ -1,0 +1,59 @@
+{
+  "label": "HISTORICAL VERIFIED PAYPAL SANDBOX EVIDENCE \u2014 not a live checkout",
+  "verified_date": "2026-11-09",
+  "data": "Reproducible synthetic logistics records, October 2026",
+  "authorized_cents": 2000,
+  "captured_cents": 105,
+  "capture_status": "COMPLETED",
+  "final_capture": true,
+  "ledger_difference_cents": 0,
+  "reserved_cents": 0,
+  "queries": [
+    {
+      "label": "Port-delay analysis",
+      "price_cents": 70,
+      "sql": "SELECT \"p\".\"id\" AS \"port_id\", \"p\".\"name\" AS \"port_name\", AVG(\"s\".\"delay_hours\") AS \"avg_delay_hours\" FROM \"vault_data\".\"shipments\" AS \"s\" JOIN \"vault_data\".\"ports\" AS \"p\" ON \"s\".\"port_id\" = \"p\".\"id\" WHERE \"s\".\"shipped_on\" >= CAST('2026-10-01' AS DATE) AND \"s\".\"shipped_on\" <= CAST('2026-10-31' AS DATE) GROUP BY \"p\".\"id\", \"p\".\"name\" ORDER BY \"avg_delay_hours\" DESC LIMIT 100",
+      "rows": [
+        {
+          "port_id": 3,
+          "port_name": "Chennai",
+          "avg_delay_hours": "21.0933333333333333"
+        },
+        {
+          "port_id": 1,
+          "port_name": "Singapore",
+          "avg_delay_hours": "21.0466666666666667"
+        },
+        {
+          "port_id": 2,
+          "port_name": "Rotterdam",
+          "avg_delay_hours": "20.9533333333333333"
+        },
+        {
+          "port_id": 4,
+          "port_name": "Long Beach",
+          "avg_delay_hours": "20.9066666666666667"
+        }
+      ],
+      "decision": "The query selects the average delay per port for all shipments in October 2026, grouping by port and ordering by the average delay in descending order. It limits the result to 100 rows as requested.",
+      "remaining_budget_cents": 2000
+    },
+    {
+      "label": "October shipment count",
+      "price_cents": 35,
+      "sql": "SELECT COUNT(*) AS shipment_count FROM shipments WHERE shipped_on >= '2026-10-01' AND shipped_on < '2026-11-01'",
+      "rows": [
+        {
+          "shipment_count": 600
+        }
+      ]
+    }
+  ],
+  "security_rejections": 1,
+  "separate_zero_spend_test": {
+    "authorized_cents": 2000,
+    "status": "VOIDED",
+    "captured_cents": 0
+  },
+  "identifiers": "Removed from public evidence; raw operator records remain in ignored private files."
+}

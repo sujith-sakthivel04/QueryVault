@@ -1,0 +1,53 @@
+# Optional Phase B2 overlay. It uses a fresh database volume and private quota
+# volume; the base public_demo service remains the default and is unchanged.
+services:
+  db:
+    environment:
+      POSTGRES_DB: queryvault_interactive_demo
+    volumes:
+      - interactive_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U qv_migrator -d queryvault_interactive_demo"]
+  migrate:
+    environment:
+      QUERYVAULT_MODE: public_interactive
+      MIGRATION_DB_NAME: queryvault_interactive_demo
+      READER_DB_PASSWORD_FILE: /run/secrets/interactive_reader_password
+    secrets: !override
+      - postgres_password
+      - interactive_reader_password
+    command: [python, migrate_deployment.py]
+  quota-init:
+    build: .
+    profiles: [initialize]
+    command: [python, initialize_interactive_quota.py]
+    environment:
+      QUERYVAULT_QUOTA_DB_PATH: /var/lib/queryvault/quota.sqlite3
+    volumes:
+      - interactive_state:/var/lib/queryvault
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: "no"
+  web:
+    environment:
+      QUERYVAULT_MODE: public_interactive
+      QUERYVAULT_INTERACTIVE_ENABLED: ${QUERYVAULT_INTERACTIVE_ENABLED:-false}
+      QUERYVAULT_QUOTA_DB_PATH: /var/lib/queryvault/quota.sqlite3
+      READER_DATABASE_URL_FILE: /run/secrets/interactive_reader_database_url
+      GROQ_API_KEY_FILE: /run/secrets/groq_api_key
+    secrets: !override
+      - interactive_reader_database_url
+      - groq_api_key
+    volumes:
+      - interactive_state:/var/lib/queryvault
+volumes:
+  interactive_postgres_data:
+  interactive_state:
+secrets:
+  interactive_reader_password:
+    file: ./.local/deploy-secrets/interactive_reader_password
+  interactive_reader_database_url:
+    file: ./.local/deploy-secrets/interactive_reader_database_url
+  groq_api_key:
+    file: ./.local/deploy-secrets/groq_api_key

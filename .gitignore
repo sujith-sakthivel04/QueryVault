@@ -1,0 +1,55 @@
+# Private environment files; keep only the safe templates in source control.
+.env
+.env.*
+!.env.example
+!.env.deploy.example
+
+# Operator data, temporary staging secrets, databases and generated reports.
+.local/
+submission/
+*.log
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.backup
+*.bak
+*.pem
+*.key
+/test-results.xml
+/public-audit.json
+/evaluation.json
+/reproducibility-report.json
+/checkout-diagnosis.json
+/sandbox-verification.json
+/paypal-reconciliation-audit.json
+/live-ai-evaluation.json
+/heldout-ai-evaluation.json
+/economic-demo-report.json
+/economic-demo-budget20-report.json
+/economic-demo-budget50-before-report.json
+/fresh-query-demo-report.json
+/public-interactive-verification*.json
+/public-interactive-browser-qa.json
+/deployment-readiness.json
+/deployment-verification.json
+/engineering-readiness.json
+/option-b-readiness.json
+/browser-qa.json
+/checkout-return.json
+
+# Local build and test outputs.
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+coverage/
+frontend/node_modules/
+frontend/dist/
+frontend/.npm-cache/
+
+# Keep historical seller screenshots with internal ledger/quote identifiers local.
+/assets/seller-*.jpg
+/docs/design-audit/
+/docs/visual-refinement/

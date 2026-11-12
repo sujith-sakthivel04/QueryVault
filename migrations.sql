@@ -1,0 +1,18 @@
+CREATE SCHEMA IF NOT EXISTS vault_data;
+CREATE TABLE IF NOT EXISTS vault_data.ports(id int PRIMARY KEY, name text, country text);
+CREATE TABLE IF NOT EXISTS vault_data.routes(id int PRIMARY KEY, name text, distance_km int);
+CREATE TABLE IF NOT EXISTS vault_data.shipments(id int PRIMARY KEY, port_id int REFERENCES vault_data.ports, route_id int REFERENCES vault_data.routes, shipped_on date, delay_hours int, containers int);
+INSERT INTO vault_data.ports VALUES (1,'Singapore','Singapore'),(2,'Rotterdam','Netherlands'),(3,'Chennai','India'),(4,'Long Beach','USA') ON CONFLICT DO NOTHING;
+INSERT INTO vault_data.routes VALUES (1,'Straits corridor',3400),(2,'Atlantic connection',9800),(3,'Pacific passage',11200) ON CONFLICT DO NOTHING;
+INSERT INTO vault_data.shipments SELECT i,1+(i%4),1+(i%3),date '2026-10-01'+(i%30),(i*7)%49,1+(i%20) FROM generate_series(1,600) i ON CONFLICT DO NOTHING;
+CREATE INDEX IF NOT EXISTS shipments_date_idx ON vault_data.shipments(shipped_on);
+CREATE TABLE IF NOT EXISTS sessions(id text PRIMARY KEY, owner text NOT NULL, state text NOT NULL, budget int NOT NULL CHECK(budget>0), spent int NOT NULL DEFAULT 0 CHECK(spent>=0), reserved int NOT NULL DEFAULT 0 CHECK(reserved>=0), order_id text, authorization_id text, capture_id text, request_id text NOT NULL, approval_url text, error text, payment jsonb, CHECK(spent+reserved<=budget));
+CREATE TABLE IF NOT EXISTS quotes(id text PRIMARY KEY, session_id text REFERENCES sessions, owner text NOT NULL, sql text NOT NULL, sql_hash text NOT NULL, policy text NOT NULL, price int NOT NULL CHECK(price>0), version text NOT NULL, expires_at timestamptz NOT NULL, plan jsonb NOT NULL, state text NOT NULL DEFAULT 'quoted', result jsonb);
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS authorization_expires_at timestamptz;
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS binding_signature text;
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS started_at timestamptz;
+CREATE TABLE IF NOT EXISTS agent_runs(id text PRIMARY KEY,session_id text NOT NULL REFERENCES sessions,owner text NOT NULL,objective text NOT NULL,state text NOT NULL,result jsonb,error text,created_at timestamptz NOT NULL DEFAULT now(),finished_at timestamptz);
+CREATE TABLE IF NOT EXISTS ledger(id bigserial PRIMARY KEY, session_id text NOT NULL REFERENCES sessions, quote_id text, event text NOT NULL, cents int NOT NULL, detail jsonb NOT NULL DEFAULT '{}', created_at timestamptz NOT NULL DEFAULT now());
+CREATE OR REPLACE FUNCTION immutable_ledger() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Ledger is append-only'; END $$;
+DROP TRIGGER IF EXISTS immutable_ledger_trigger ON ledger;
+CREATE TRIGGER immutable_ledger_trigger BEFORE UPDATE OR DELETE ON ledger FOR EACH ROW EXECUTE FUNCTION immutable_ledger();
